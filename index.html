@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Crypto Capital Widget</title>
+  <title>Crypto Widget (No LocalStorage)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -14,18 +14,11 @@
     }
     canvas {
       max-width: 400px;
-      margin: 20px auto;
+      margin: 0 auto;
     }
-    input, button {
-      margin: 5px;
-      padding: 5px 10px;
-    }
-    .form-row {
-      margin-bottom: 10px;
-    }
-    .status {
-      color: lightgreen;
+    .info {
       margin-top: 10px;
+      color: #ccc;
       font-size: 14px;
     }
   </style>
@@ -33,88 +26,61 @@
 <body>
   <h2>💰 My Crypto Capital</h2>
   <canvas id="cryptoChart"></canvas>
-
-  <div class="form-row">
-    <input id="cryptoName" placeholder="Token (e.g. BTC)" />
-    <input id="cryptoValue" type="number" placeholder="Value $" />
-    <button id="addBtn">Add / Update</button>
-    <button id="resetBtn">Reset</button>
-  </div>
-
-  <div class="status" id="statusMessage"></div>
+  <div class="info">Data from URL parameter <code>?data=BTC:1000,ETH:500</code></div>
 
   <script>
-    let portfolio = JSON.parse(localStorage.getItem('cryptoPortfolio')) || {
-      USDT: 100,
+    function getPortfolioFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get("data");
+      if (!raw) return null;
+
+      const pairs = raw.split(",");
+      const portfolio = {};
+      for (let pair of pairs) {
+        let [key, val] = pair.split(":");
+        if (key && val && !isNaN(parseFloat(val))) {
+          portfolio[key.trim().toUpperCase()] = parseFloat(val);
+        }
+      }
+      return portfolio;
+    }
+
+    const portfolio = getPortfolioFromURL() || {
+      BTC: 1000,
+      ETH: 500,
+      USDT: 300,
     };
 
     const ctx = document.getElementById('cryptoChart').getContext('2d');
-    let chart;
+    const labels = Object.keys(portfolio);
+    const data = Object.values(portfolio);
+    const colors = labels.map(() => '#' + Math.floor(Math.random()*16777215).toString(16));
 
-    function showStatus(msg, color = 'lightgreen') {
-      const statusEl = document.getElementById("statusMessage");
-      statusEl.style.color = color;
-      statusEl.textContent = msg;
-      setTimeout(() => {
-        statusEl.textContent = "";
-      }, 3000);
-    }
-
-    function renderChart() {
-      const labels = Object.keys(portfolio);
-      const data = Object.values(portfolio);
-      const colors = labels.map(() => '#' + Math.floor(Math.random()*16777215).toString(16));
-
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels,
-          datasets: [{
-            data,
-            backgroundColor: colors,
-            borderWidth: 1
-          }]
-        },
-        options: {
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: ctx => `${ctx.label}: $${ctx.raw}`
-              }
-            },
-            legend: {
-              labels: { color: '#fff' }
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: colors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.label}: $${ctx.raw}`
             }
+          },
+          legend: {
+            position: 'bottom',
+            labels: { color: '#fff' }
           }
         }
-      });
-    }
-
-    function addCrypto() {
-      const name = document.getElementById('cryptoName').value.trim().toUpperCase();
-      const value = parseFloat(document.getElementById('cryptoValue').value);
-      if (name && !isNaN(value)) {
-        portfolio[name] = value;
-        localStorage.setItem('cryptoPortfolio', JSON.stringify(portfolio));
-        renderChart();
-        showStatus(`${name} оновлено: $${value}`);
-      } else {
-        showStatus("Некоректне значення", "orange");
       }
-    }
-
-    function resetPortfolio() {
-      portfolio = {};
-      localStorage.removeItem('cryptoPortfolio');
-      renderChart();
-      showStatus("Портфель очищено");
-    }
-
-    document.getElementById('addBtn').addEventListener('click', addCrypto);
-    document.getElementById('resetBtn').addEventListener('click', resetPortfolio);
-
-    renderChart();
+    });
   </script>
 </body>
 </html>
